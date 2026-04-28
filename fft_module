@@ -1,0 +1,105 @@
+"""
+fft_module.py
+Собственная реализация быстрого преобразования Фурье (БПФ)
+Для курсового проекта - полная версия с двумя алгоритмами
+"""
+
+import math
+
+def is_power_of_two(n):
+    """Проверка, является ли число степенью двойки"""
+    return n > 0 and (n & (n - 1)) == 0
+
+def next_power_of_two(n):
+    """Находит ближайшую степень двойки, большую или равную n"""
+    result = 1
+    while result < n:
+        result <<= 1
+    return result
+
+def fft_recursive(x):
+    """
+    Рекурсивная реализация БПФ
+
+    Параметры:
+        x: list of complex - входной сигнал (должен быть степенью двойки)
+
+    Возвращает:
+        list of complex - результат FFT
+    """
+    n = len(x)
+
+    # Базовый случай
+    if n == 1:
+        return x
+
+    # Разделяем на чётные и нечётные индексы
+    even = fft_recursive(x[0::2])
+    odd = fft_recursive(x[1::2])
+
+    # Вычисляем поворачивающие множители и объединяем
+    result = [0] * n
+    for k in range(n // 2):
+        angle = -2 * math.pi * k / n
+        w = complex(math.cos(angle), math.sin(angle))
+
+        t = w * odd[k]
+        result[k] = even[k] + t
+        result[k + n // 2] = even[k] - t
+
+    return result
+
+def fft_iterative(signal):
+    """
+    Итеративная (нерекурсивная) версия БПФ
+    Более эффективна и не имеет ограничений на глубину рекурсии
+    """
+    # Преобразуем в комплексные
+    x = [complex(val, 0) for val in signal]
+    n = len(x)
+
+    # Дополняем до степени двойки
+    if not is_power_of_two(n):
+        new_n = next_power_of_two(n)
+        x.extend([complex(0, 0)] * (new_n - n))
+        n = new_n
+
+    # Бит-реверсивная перестановка
+    j = 0
+    for i in range(1, n):
+        bit = n >> 1
+        while j & bit:
+            j ^= bit
+            bit >>= 1
+        j ^= bit
+        if i < j:
+            x[i], x[j] = x[j], x[i]
+
+    # Основной цикл (по уровням)
+    length = 2
+    while length <= n:
+        angle = -2 * math.pi / length
+        wlen = complex(math.cos(angle), math.sin(angle))
+
+        for i in range(0, n, length):
+            w = 1 + 0j
+            half = length // 2
+            for j in range(i, i + half):
+                u = x[j]
+                v = x[j + half] * w
+                x[j] = u + v
+                x[j + half] = u - v
+                w *= wlen
+
+        length <<= 1
+
+    # Возвращаем амплитуды
+    return [abs(val) for val in x]
+
+def compute_fft(signal):
+    """
+    Вычисляет амплитудный спектр сигнала с помощью БПФ
+    Используется итеративная версия (без рекурсии, надёжнее)
+    """
+    # ✅ ИСПРАВЛЕНО: используем итеративную версию, а не вызываем сами себя
+    return fft_iterative(signal)
